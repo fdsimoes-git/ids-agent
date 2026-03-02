@@ -1,0 +1,19 @@
+{
+  "name": "ids-agent",
+  "version": "1.0.0",
+  "description": "Intrusion Detection & Alert System with AI-powered threat analysis",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "keywords": ["ids", "intrusion-detection", "security", "monitoring"],
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "geoip-lite": "^1.4.10"
+  }
+}

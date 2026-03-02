@@ -1,0 +1,128 @@
+import Anthropic from '@anthropic-ai/sdk';
+import config from '../../config.js';
+import logger, { appendToFile } from '../utils/logger.js';
+
+let client = null;
+
+if (config.anthropic.apiKey) {
+  try {
+    client = new Anthropic({ apiKey: config.anthropic.apiKey });
+    logger.info('Anthropic AI client initialized');
+  } catch (err) {
+    logger.warn('Failed to initialize Anthropic client', { error: err.message });
+  }
+}
+
+const SYSTEM_PROMPT = `You are a cybersecurity AI agent analyzing intrusion detection alerts for a Node.js web application hosted on a GCP e2-micro instance behind Nginx and Cloudflare.
+
+Analyze each threat and provide:
+1. Whether it is a real threat or a false positive
+2. Attack type classification (DDoS, brute force, reconnaissance, injection, bot, etc.)
+3. Confidence score (0-100%)
+4. Recommended action: "block", "monitor", "ignore", or "escalate"
+5. A concise human-readable explanation for the operations team
+
+Consider the threat history to detect coordinated campaigns or recurring attackers.
+
+Respond ONLY with valid JSON:
+{
+  "isRealThreat": boolean,
+  "attackType": "string",
+  "confidence": number,
+  "action": "block" | "monitor" | "ignore" | "escalate",
+  "explanation": "string"
+}`;
+
+export async function analyzeThreat(threat, recentHistory) {
+  if (!client) return null;
+
+  const prompt = [
+    `Analyze this IDS alert:`,
+    ``,
+    `Rule: ${threat.rule}`,
+    `Source IP: ${threat.ip}`,
+    `Severity: ${threat.severity}`,
+    `Timestamp: ${threat.timestamp}`,
+    `Endpoint: ${threat.endpoint}`,
+    `Details: ${threat.details}`,
+    `Event count: ${threat.count}`,
+    ``,
+    `Recent 24h history (${recentHistory.length} events):`,
+    JSON.stringify(recentHistory.slice(-50), null, 2),
+  ].join('\n');
+
+  try {
+    const response = await client.messages.create({
+      model: config.anthropic.model,
+      max_tokens: config.anthropic.maxTokens,
+      system: SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const text = response.content[0].text.trim();
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No JSON in AI response');
+
+    const analysis = JSON.parse(jsonMatch[0]);
+
+    await appendToFile(config.aiDecisionLogPath, JSON.stringify({
+      timestamp: new Date().toISOString(),
+      threat: { rule: threat.rule, ip: threat.ip, severity: threat.severity },
+      analysis,
+    }));
+
+    logger.info('AI analysis complete', {
+      ip: threat.ip,
+      action: analysis.action,
+      confidence: analysis.confidence,
+    });
+
+    return analysis;
+  } catch (err) {
+    logger.error('AI analysis failed', { error: err.message });
+    return null;
+  }
+}
+
+export async function generateWeeklyReport(weekHistory) {
+  if (!client) return null;
+
+  try {
+    const response = await client.messages.create({
+      model: config.anthropic.model,
+      max_tokens: config.anthropic.maxTokens,
+      system: 'You are a cybersecurity analyst generating a concise weekly threat report. Use plain text suitable for a Telegram message (no markdown headers, use simple formatting).',
+      messages: [{
+        role: 'user',
+        content: `Weekly IDS report from ${weekHistory.length} events over the last 7 days:\n\n${JSON.stringify(weekHistory.slice(-200), null, 2)}\n\nCover: attack trends, top offenders, pattern analysis, and infrastructure recommendations.`,
+      }],
+    });
+
+    return response.content[0].text;
+  } catch (err) {
+    logger.error('Weekly report generation failed', { error: err.message });
+    return null;
+  }
+}
+
+export async function generateIpReport(ip, history) {
+  if (!client) return 'AI unavailable \u2014 Anthropic API not configured.';
+
+  const ipEvents = history.filter(e => e.ip === ip);
+  if (ipEvents.length === 0) return `No recorded activity for IP ${ip}.`;
+
+  try {
+    const response = await client.messages.create({
+      model: config.anthropic.model,
+      max_tokens: config.anthropic.maxTokens,
+      system: 'You are a cybersecurity analyst. Provide a deep-dive report on this IP. Use plain text suitable for Telegram (no markdown headers).',
+      messages: [{
+        role: 'user',
+        content: `Deep-dive on IP ${ip} (${ipEvents.length} events):\n\n${JSON.stringify(ipEvents.slice(-50), null, 2)}\n\nAnalyze: attack patterns, timing, risk level, recommended actions.`,
+      }],
+    });
+    return response.content[0].text;
+  } catch (err) {
+    return `AI report failed: ${err.message}`;
+  }
+}
