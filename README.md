@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="assets/logo.png" alt="IDS Agent" width="400">
+  <img src="assets/logo.png" alt="IDS Agent" width="500">
 </p>
 
 # IDS Agent
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](LICENSE)
 
 Intrusion Detection & Alert System for Node.js applications on GCP, with AI-powered threat analysis.
 
@@ -180,7 +180,3 @@ src/
 | `ids-agent.service` | systemd service template |
 | `setup.sh` | Automated setup for Ubuntu 24 |
 | `.gitignore` | Excludes secrets and logs |
-
-## License
-
-MIT
