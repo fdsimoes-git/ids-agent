@@ -40,7 +40,7 @@ Respond ONLY with valid JSON:
 export async function analyzeThreat(threat, recentHistory) {
   if (!client) return null;
 
-  const prompt = [
+  const lines = [
     `Analyze this IDS alert:`,
     ``,
     `Rule: ${threat.rule}`,
@@ -50,10 +50,27 @@ export async function analyzeThreat(threat, recentHistory) {
     `Endpoint: ${threat.endpoint}`,
     `Details: ${threat.details}`,
     `Event count: ${threat.count}`,
+  ];
+
+  if (threat.protocol) lines.push(`Protocol: ${threat.protocol}`);
+  if (threat.httpMethod) lines.push(`HTTP Method: ${threat.httpMethod}`);
+  if (threat.statusCode) {
+    const label = threat.statusLabel ? ` (${threat.statusLabel})` : '';
+    lines.push(`Status Code: ${threat.statusCode}${label}`);
+  }
+  if (threat.authMethod) lines.push(`Auth Method: ${threat.authMethod}`);
+  if (threat.destPort) lines.push(`Dest Port: ${threat.destPort}`);
+  if (threat.jail) lines.push(`Fail2ban Jail: ${threat.jail}`);
+  if (threat.origin) lines.push(`Origin: ${threat.origin.name} (${threat.origin.type})`);
+  if (threat.userAgent) lines.push(`User-Agent: ${threat.userAgent}`);
+
+  lines.push(
     ``,
     `Recent 24h history (${recentHistory.length} events):`,
     JSON.stringify(recentHistory.slice(-50), null, 2),
-  ].join('\n');
+  );
+
+  const prompt = lines.join('\n');
 
   try {
     const response = await client.messages.create({

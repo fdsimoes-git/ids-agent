@@ -15,20 +15,49 @@ let draining = false;
 
 export async function sendAlert(threat) {
   const icon = SEVERITY_ICON[threat.severity] || '\u26AA';
-  const text = [
+  const lines = [
     `${icon} <b>${threat.severity} \u2014 ${threat.rule}</b>`,
     ``,
     `<b>Source IP:</b> <code>${threat.ip || 'N/A'}</code>`,
     `<b>Time:</b> ${threat.timestamp}`,
+  ];
+
+  if (threat.protocol) {
+    lines.push(`<b>Protocol:</b> ${escapeHtml(threat.protocol)}`);
+  }
+  if (threat.httpMethod && threat.statusCode) {
+    const label = threat.statusLabel ? ` (${escapeHtml(threat.statusLabel)})` : '';
+    lines.push(`<b>Request:</b> ${escapeHtml(threat.httpMethod)} → ${escapeHtml(String(threat.statusCode))}${label}`);
+  } else if (threat.httpMethod) {
+    lines.push(`<b>Request:</b> ${escapeHtml(threat.httpMethod)}`);
+  }
+  if (threat.authMethod) {
+    lines.push(`<b>Auth Method:</b> ${escapeHtml(threat.authMethod)}`);
+  }
+  if (threat.destPort) {
+    lines.push(`<b>Dest Port:</b> <code>${escapeHtml(String(threat.destPort))}</code>`);
+  }
+  if (threat.jail) {
+    lines.push(`<b>Jail:</b> ${escapeHtml(threat.jail)}`);
+  }
+  if (threat.origin) {
+    lines.push(`<b>Origin:</b> ${escapeHtml(threat.origin.name)} (${escapeHtml(threat.origin.type)})`);
+  }
+
+  lines.push(
     `<b>Endpoint:</b> <code>${escapeHtml(threat.endpoint || 'N/A')}</code>`,
     `<b>Details:</b> ${escapeHtml(threat.details)}`,
     `<b>Suggested:</b> ${escapeHtml(threat.suggestedAction)}`,
+  );
+  lines.push(
     ``,
     `<b>Actions:</b>`,
     `<code>/block_ip ${threat.ip}</code>`,
     `<code>/whitelist ${threat.ip}</code>`,
     `<code>/report ${threat.ip}</code>`,
-  ].join('\n');
+  );
+
+  const text = lines.join('\n');
 
   await sendMessage(text);
 }
