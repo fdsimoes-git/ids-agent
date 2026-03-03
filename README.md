@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.png" alt="IDS Agent" width="200">
+</p>
+
 # IDS Agent
 
 Intrusion Detection & Alert System for Node.js applications on GCP, with AI-powered threat analysis.
