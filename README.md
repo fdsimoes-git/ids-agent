@@ -4,6 +4,8 @@
 
 # IDS Agent
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Intrusion Detection & Alert System for Node.js applications on GCP, with AI-powered threat analysis.
 
 ## Overview
