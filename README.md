@@ -12,7 +12,7 @@ IDS Agent monitors your server's log files in real-time, detects threats using c
 
 - **10 detection rules**: brute-force, port scanning, HTTP flood, 4xx/5xx spikes, SSH abuse, scanner user-agents, geo-anomaly, SQL injection, XSS, post-ban re-access
 - **Real-time log monitoring**: Nginx, auth.log, UFW, fail2ban, systemd journal
-- **Telegram alerts**: severity-tagged, with inline action commands
+- **Telegram alerts**: severity-tagged, with protocol/request/origin context and inline action commands
 - **AI analysis**: Claude evaluates HIGH/CRITICAL threats, classifies attacks, recommends actions
 - **Autonomous mode**: AI-driven IP blocking via fail2ban and UFW (configurable)
 - **Human-in-the-loop**: Telegram commands for manual blocking, whitelisting, reports
@@ -132,7 +132,7 @@ curl -H "Authorization: Bearer YOUR_TOKEN" http://localhost:3001/stats
 
 When a HIGH or CRITICAL threat is detected, Claude AI:
 
-1. Analyzes the full context (log data, IP history, detection rule)
+1. Analyzes the full context (log data, IP history, detection rule, protocol, HTTP method/status, user-agent, origin)
 2. Classifies the attack type with a confidence score
 3. Recommends an action: `block`, `monitor`, `ignore`, or `escalate`
 4. Provides a human-readable explanation
@@ -155,7 +155,7 @@ src/
 ├── ai/                   # Claude AI analyzer, autonomous actions, threat memory
 ├── api/                  # HTTP health/stats endpoints
 ├── bot/                  # Telegram bot command handler
-└── utils/                # Logger, sanitizer, file tailer, cooldown manager
+└── utils/                # Logger, sanitizer, file tailer, cooldown manager, origin identifier
 ```
 
 ## Deployment Recommendations
