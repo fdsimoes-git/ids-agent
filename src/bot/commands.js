@@ -97,17 +97,26 @@ async function handleMessage(msg, store, memory) {
       }
 
       case '/blocked': {
-        const banned = [...store.bannedIps.entries()];
+        const banned = store.getBannedIps();
         if (banned.length === 0) {
-          await sendMessage('✅ No blocked IPs at the moment.');
+          await sendMessage('\u2705 No blocked IPs at the moment.');
           break;
         }
-        const lines = [`🚫 <b>Blocked IPs (${banned.length})</b>`, ''];
-        for (const [ip, info] of banned) {
-          const ago = formatUptime(Math.floor((Date.now() - info.bannedAt) / 1000));
-          lines.push(`<code>${ip}</code> — jail: <b>${escapeHtml(info.jail)}</b>, ${ago} ago`);
+        const header = `\u{1F6AB} <b>Blocked IPs (${banned.length})</b>\n`;
+        const entries = banned.map(({ ip, bannedAt, jail }) => {
+          const ago = formatUptime(Math.floor((Date.now() - bannedAt) / 1000));
+          return `<code>${ip}</code> \u2014 jail: <b>${escapeHtml(jail)}</b>, ${ago} ago`;
+        });
+        // Telegram limits messages to 4096 chars — send in chunks
+        let msg = header;
+        for (const entry of entries) {
+          if (msg.length + entry.length + 1 > 4000) {
+            await sendMessage(msg);
+            msg = `\u{1F6AB} <b>Blocked IPs (cont.)</b>\n`;
+          }
+          msg += '\n' + entry;
         }
-        await sendMessage(lines.join('\n'));
+        await sendMessage(msg);
         break;
       }
 
