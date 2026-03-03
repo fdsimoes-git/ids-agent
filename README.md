@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.png" alt="IDS Agent" width="200">
+  <img src="assets/logo.png" alt="IDS Agent" width="400">
 </p>
 
 # IDS Agent
