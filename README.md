@@ -20,7 +20,7 @@ IDS Agent monitors your server's log files in real-time, detects threats using c
 - **Real-time log monitoring**: Nginx, auth.log, UFW, fail2ban, systemd journal
 - **Telegram alerts**: severity-tagged, with protocol/request/origin context and inline action commands
 - **AI analysis**: Claude evaluates HIGH/CRITICAL threats, classifies attacks, recommends actions
-- **Autonomous mode**: AI-driven IP blocking via fail2ban and UFW (configurable)
+- **Autonomous mode**: AI-driven IP blocking via fail2ban and iptables (configurable)
 - **Human-in-the-loop**: Telegram commands for manual blocking, whitelisting, reports
 - **Daily summaries** at 08:00 AM, **weekly AI reports** on Mondays
 - **HTTP API**: `/health` and `/stats` endpoints
@@ -33,7 +33,7 @@ IDS Agent monitors your server's log files in real-time, detects threats using c
 - Nginx (configured as reverse proxy)
 - Cloudflare (in front of the server)
 - fail2ban (installed and running)
-- UFW (enabled)
+- iptables (available)
 
 ## Quick Setup
 
@@ -112,7 +112,7 @@ curl -H "Authorization: Bearer YOUR_TOKEN" http://localhost:3001/stats
 
 | Command | Description |
 |---|---|
-| `/block_ip <IP>` | Block an IP via fail2ban + UFW |
+| `/block_ip <IP>` | Block an IP via fail2ban + iptables |
 | `/whitelist <IP>` | Suppress future alerts for an IP |
 | `/report <IP>` | AI deep-dive report on IP activity |
 | `/status` | Current threat summary and stats |
