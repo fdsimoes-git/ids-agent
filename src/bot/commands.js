@@ -96,6 +96,21 @@ async function handleMessage(msg, store, memory) {
         break;
       }
 
+      case '/blocked': {
+        const banned = [...store.bannedIps.entries()];
+        if (banned.length === 0) {
+          await sendMessage('✅ No blocked IPs at the moment.');
+          break;
+        }
+        const lines = [`🚫 <b>Blocked IPs (${banned.length})</b>`, ''];
+        for (const [ip, info] of banned) {
+          const ago = formatUptime(Math.floor((Date.now() - info.bannedAt) / 1000));
+          lines.push(`<code>${ip}</code> — jail: <b>${escapeHtml(info.jail)}</b>, ${ago} ago`);
+        }
+        await sendMessage(lines.join('\n'));
+        break;
+      }
+
       case '/status': {
         const stats = store.getStats();
         const lines = [
@@ -129,6 +144,7 @@ async function handleMessage(msg, store, memory) {
           `/block_ip &lt;IP&gt; \u2014 Block IP via fail2ban + UFW\n` +
           `/whitelist &lt;IP&gt; \u2014 Suppress alerts for IP\n` +
           `/report &lt;IP&gt; \u2014 AI deep-dive on IP activity\n` +
+          `/blocked \u2014 List currently blocked IPs\n` +
           `/status \u2014 Current threat summary\n` +
           `/help \u2014 Show this message`
         );
