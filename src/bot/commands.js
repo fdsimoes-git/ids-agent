@@ -102,21 +102,21 @@ async function handleMessage(msg, store, memory) {
           await sendMessage('\u2705 No blocked IPs at the moment.');
           break;
         }
-        const header = `\u{1F6AB} <b>Blocked IPs (${banned.length})</b>\n`;
+        const header = `\u{1F6AB} <b>Blocked IPs (${banned.length})</b>`;
         const entries = banned.map(({ ip, bannedAt, jail }) => {
           const ago = formatUptime(Math.floor((Date.now() - bannedAt) / 1000));
           return `<code>${ip}</code> \u2014 jail: <b>${escapeHtml(jail)}</b>, ${ago} ago`;
         });
         // Telegram limits messages to 4096 chars — send in chunks
-        let msg = header;
+        let out = header;
         for (const entry of entries) {
-          if (msg.length + entry.length + 1 > 4000) {
-            await sendMessage(msg);
-            msg = `\u{1F6AB} <b>Blocked IPs (cont.)</b>\n`;
+          if (out.length + entry.length + 1 > 4000) {
+            await sendMessage(out);
+            out = `\u{1F6AB} <b>Blocked IPs (cont.)</b>`;
           }
-          msg += '\n' + entry;
+          out += '\n' + entry;
         }
-        await sendMessage(msg);
+        await sendMessage(out);
         break;
       }
 
