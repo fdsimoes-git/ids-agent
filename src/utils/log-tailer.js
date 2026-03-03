@@ -27,15 +27,21 @@ export class LogTailer {
       this.inode = st.ino;
       this.fd = await open(this.filePath, 'r');
     } catch (err) {
-      logger.warn(`Cannot open ${this.filePath}: ${err.message} — will retry on change`);
+      logger.warn(`Cannot open ${this.filePath}: ${err.message} — will poll until it appears`);
       this.offset = 0;
     }
 
-    this.watcher = watch(this.filePath, { persistent: false }, () => {
-      if (!this.stopped) this._readNew();
-    });
+    // fs.watch crashes on non-existent files, so only watch if the file exists
+    try {
+      this.watcher = watch(this.filePath, { persistent: false }, () => {
+        if (!this.stopped) this._readNew();
+      });
+      this.watcher.on('error', () => {}); // suppress watcher errors (e.g. file deleted)
+    } catch {
+      // File doesn't exist yet — polling will pick it up when it appears
+    }
 
-    // Also poll every 2s as fallback (some fs don't emit watch events reliably)
+    // Poll every 2s as fallback (handles missing files and unreliable fs.watch)
     this.pollInterval = setInterval(() => {
       if (!this.stopped) this._readNew();
     }, 2000);
@@ -50,14 +56,28 @@ export class LogTailer {
     try {
       const st = await stat(this.filePath);
 
-      // Detect log rotation (file got smaller or different inode)
-      if (st.size < this.offset || st.ino !== this.inode) {
-        logger.info(`Log rotation detected for ${this.filePath}`);
-        if (this.fd) await this.fd.close().catch(() => {});
+      // First time seeing the file, or log rotation (file got smaller or different inode)
+      if (!this.fd || st.size < this.offset || st.ino !== this.inode) {
+        if (this.fd) {
+          logger.info(`Log rotation detected for ${this.filePath}`);
+          await this.fd.close().catch(() => {});
+        } else {
+          logger.info(`File appeared: ${this.filePath}`);
+        }
         this.fd = await open(this.filePath, 'r');
-        this.offset = 0;
+        this.offset = this.inode ? 0 : st.size; // new file: start from end; rotation: read from start
         this.inode = st.ino;
         this.buffer = '';
+
+        // Start watcher if we didn't have one
+        if (!this.watcher) {
+          try {
+            this.watcher = watch(this.filePath, { persistent: false }, () => {
+              if (!this.stopped) this._readNew();
+            });
+            this.watcher.on('error', () => {});
+          } catch { /* polling is enough */ }
+        }
       }
 
       if (st.size <= this.offset) {

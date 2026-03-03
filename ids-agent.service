@@ -28,7 +28,9 @@ Environment="IDS_PORT=3001"
 NoNewPrivileges=false
 ProtectSystem=strict
 ReadWritePaths=/var/log/ids-agent /var/lib/ids-agent
-ReadOnlyPaths=/var/log/nginx /var/log/auth.log /var/log/ufw.log /var/log/fail2ban.log
+# Add only paths that exist on your server (missing paths cause startup failure)
+ReadOnlyPaths=/var/log/nginx /var/log/auth.log /var/log/fail2ban.log
+# ReadOnlyPaths=/var/log/ufw.log  # uncomment if /var/log/ufw.log exists
 
 # Logging
 StandardOutput=journal
