@@ -1,7 +1,7 @@
 import config from '../../config.js';
 import logger from '../utils/logger.js';
 import { sendMessage } from '../alerters/telegram.js';
-import { blockIp } from '../ai/actions.js';
+import { blockIp, unblockIp } from '../ai/actions.js';
 import { generateIpReport } from '../ai/analyzer.js';
 import { sanitizeIp } from '../utils/sanitize.js';
 
@@ -72,6 +72,20 @@ async function handleMessage(msg, store, memory) {
         break;
       }
 
+      case '/unblock_ip': {
+        const ip = sanitizeIp(args[0]);
+        if (!ip) {
+          await sendMessage('\u26A0\uFE0F Usage: /unblock_ip &lt;IP&gt;');
+          return;
+        }
+        const ubResults = await unblockIp(ip);
+        await sendMessage(
+          `\u{1F513} IP <code>${ip}</code> unblocked:\n` +
+          ubResults.map(r => `\u251C ${escapeHtml(r)}`).join('\n')
+        );
+        break;
+      }
+
       case '/whitelist': {
         const ip = sanitizeIp(args[0]);
         if (!ip) {
@@ -105,7 +119,8 @@ async function handleMessage(msg, store, memory) {
         const header = `\u{1F6AB} <b>Blocked IPs (${banned.length})</b>`;
         const entries = banned.map(({ ip, bannedAt, jail }) => {
           const ago = formatUptime(Math.floor((Date.now() - bannedAt) / 1000));
-          return `<code>${ip}</code> \u2014 jail: <b>${escapeHtml(jail)}</b>, ${ago} ago`;
+          const scope = formatScope(jail);
+          return `<code>${ip}</code> \u2014 <b>${escapeHtml(scope)}</b>, ${ago} ago`;
         });
         // Telegram limits messages to 4096 chars — send in chunks
         let out = header;
@@ -150,7 +165,8 @@ async function handleMessage(msg, store, memory) {
       case '/help':
         await sendMessage(
           `\u{1F6E1}\uFE0F <b>IDS Agent Commands</b>\n\n` +
-          `/block_ip &lt;IP&gt; \u2014 Block IP via fail2ban + iptables\n` +
+          `/block_ip &lt;IP&gt; \u2014 Block IP (fail2ban + iptables + nginx)\n` +
+          `/unblock_ip &lt;IP&gt; \u2014 Unblock IP from all layers\n` +
           `/whitelist &lt;IP&gt; \u2014 Suppress alerts for IP\n` +
           `/report &lt;IP&gt; \u2014 AI deep-dive on IP activity\n` +
           `/blocked \u2014 List currently blocked IPs\n` +
@@ -167,6 +183,11 @@ async function handleMessage(msg, store, memory) {
     logger.error('Bot command error', { cmd, error: err.message });
     await sendMessage(`\u274C Command failed: ${escapeHtml(err.message)}`).catch(() => {});
   }
+}
+
+function formatScope(jail) {
+  const labels = { sshd: 'ssh', fail2ban: 'ssh', iptables: 'iptables', ip6tables: 'iptables', nginx: 'http' };
+  return (jail || 'unknown').split(',').map(l => labels[l.trim()] || l.trim()).join(' + ');
 }
 
 function formatUptime(seconds) {
