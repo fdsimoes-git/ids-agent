@@ -1,4 +1,4 @@
-import { readFile, writeFile, rename } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import config from '../../config.js';
 import logger from './logger.js';
 
@@ -68,7 +68,5 @@ async function writeDenyList(entries) {
     lines.push(`deny ${ip};`);
   }
   lines.push('');
-  const tmpPath = config.nginxDenyListPath + '.tmp';
-  await writeFile(tmpPath, lines.join('\n'), 'utf8');
-  await rename(tmpPath, config.nginxDenyListPath);
+  await writeFile(config.nginxDenyListPath, lines.join('\n'), 'utf8');
 }
