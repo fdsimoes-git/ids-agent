@@ -61,6 +61,10 @@ if [ -f /var/log/fail2ban.log ]; then
 fi
 
 # Create nginx deny list file (writable by ids-agent for HTTP-level blocking)
+if [ ! -d /etc/nginx ]; then
+  echo "[!] /etc/nginx not found — is nginx installed? Skipping nginx deny list + Cloudflare config."
+else
+
 NGINX_DENY_FILE="/etc/nginx/blocked-ips.conf"
 if [ ! -f "$NGINX_DENY_FILE" ]; then
   echo "# Managed by ids-agent — do not edit manually" > "$NGINX_DENY_FILE"
@@ -74,6 +78,8 @@ echo "[+] Installing Cloudflare real IP config: $CF_REAL_IP"
 mkdir -p "$(dirname "$CF_REAL_IP")"
 cp "$SCRIPT_DIR/cloudflare-real-ip.conf" "$CF_REAL_IP"
 chmod 644 "$CF_REAL_IP"
+
+fi # end nginx check
 
 # 7. Grant journal read access
 echo "[+] Granting systemd journal access"
