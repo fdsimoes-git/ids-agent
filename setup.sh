@@ -60,6 +60,12 @@ if [ -f /var/log/fail2ban.log ]; then
   setfacl -m u:"$USER":r /var/log/fail2ban.log 2>/dev/null || chmod o+r /var/log/fail2ban.log
 fi
 
+# Detect nginx before creating any dirs
+HAS_NGINX=false
+if command -v nginx &>/dev/null; then
+  HAS_NGINX=true
+fi
+
 # Create nginx deny list file (always — systemd ReadWritePaths requires it to exist)
 NGINX_DENY_FILE="/etc/nginx/blocked-ips.conf"
 echo "[+] Ensuring nginx deny list file exists: $NGINX_DENY_FILE"
@@ -71,7 +77,7 @@ chown "$USER:$GROUP" "$NGINX_DENY_FILE"
 chmod 644 "$NGINX_DENY_FILE"
 
 # Install Cloudflare real IP config (only if nginx is installed)
-if [ -d /etc/nginx/conf.d ] || [ -d /etc/nginx ]; then
+if [ "$HAS_NGINX" = true ]; then
   CF_REAL_IP="/etc/nginx/conf.d/cloudflare-real-ip.conf"
   echo "[+] Installing Cloudflare real IP config: $CF_REAL_IP"
   mkdir -p "$(dirname "$CF_REAL_IP")"
