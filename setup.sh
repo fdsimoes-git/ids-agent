@@ -35,7 +35,7 @@ chmod 750 /var/lib/ids-agent
 # 4. Copy application files
 echo "[+] Installing to $APP_DIR"
 mkdir -p "$APP_DIR"
-cp -r "$SCRIPT_DIR/package.json" "$SCRIPT_DIR/config.js" "$SCRIPT_DIR/src/" "$APP_DIR/"
+cp -r "$SCRIPT_DIR/package.json" "$SCRIPT_DIR/config.js" "$SCRIPT_DIR/src/" "$SCRIPT_DIR/cloudflare-real-ip.conf" "$APP_DIR/"
 chown -R "$USER:$GROUP" "$APP_DIR"
 
 # 5. Install Node.js dependencies
@@ -67,6 +67,12 @@ if [ ! -f "$NGINX_DENY_FILE" ]; then
 fi
 chown "$USER:$GROUP" "$NGINX_DENY_FILE"
 chmod 644 "$NGINX_DENY_FILE"
+
+# Install Cloudflare real IP config (so nginx sees real visitor IPs, not Cloudflare's)
+CF_REAL_IP="/etc/nginx/conf.d/cloudflare-real-ip.conf"
+echo "[+] Installing Cloudflare real IP config: $CF_REAL_IP"
+cp "$SCRIPT_DIR/cloudflare-real-ip.conf" "$CF_REAL_IP"
+chmod 644 "$CF_REAL_IP"
 
 # 7. Grant journal read access
 echo "[+] Granting systemd journal access"
