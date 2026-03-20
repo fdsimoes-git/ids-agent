@@ -221,7 +221,7 @@ else
   echo "[+] Fresh install — remember to fill in environment variables"
 fi
 
-# Uncomment ReadOnlyPaths/ReadWritePaths lines based on user selections
+# Uncomment ReadOnlyPaths lines based on user selections
 if [ "$ENABLE_NGINX" = true ]; then
   sed -i 's|^#ReadOnlyPaths=/var/log/nginx$|ReadOnlyPaths=/var/log/nginx|' "$LIVE_SERVICE"
 fi
