@@ -113,25 +113,13 @@ const AGENT_SMITH_GIF = 'https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExMXNwe
 export async function sendAgentSmithGif(ip) {
   if (!config.telegram.botToken || !config.telegram.chatId) return;
 
-  try {
-    const body = {
-      chat_id: config.telegram.chatId,
-      animation: AGENT_SMITH_GIF,
-      caption: `\u{1F576}\uFE0F <b>Agent Smith has dealt with</b> <code>${ip}</code>`,
-      parse_mode: 'HTML',
-    };
-    const res = await fetch(`${API_BASE}/sendAnimation`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      const errBody = await res.text();
-      logger.error('Telegram sendAnimation error', { status: res.status, body: errBody.slice(0, 200) });
-    }
-  } catch (err) {
-    logger.error('Telegram GIF send failed', { error: err.message });
-  }
+  const safeIp = escapeHtml(ip);
+  queue.push({
+    type: 'animation',
+    animation: AGENT_SMITH_GIF,
+    caption: `\u{1F576}\uFE0F <b>Agent Smith has dealt with</b> <code>${safeIp}</code>`,
+  });
+  if (!draining) drainQueue();
 }
 
 export async function sendMessage(text, replyMarkup) {
@@ -140,24 +128,36 @@ export async function sendMessage(text, replyMarkup) {
     return;
   }
 
-  queue.push({ text, replyMarkup });
+  queue.push({ type: 'message', text, replyMarkup });
   if (!draining) drainQueue();
 }
 
 async function drainQueue() {
   draining = true;
   while (queue.length > 0) {
-    const { text, replyMarkup } = queue.shift();
+    const item = queue.shift();
     try {
-      const body = {
-        chat_id: config.telegram.chatId,
-        text,
-        parse_mode: 'HTML',
-        disable_web_page_preview: true,
-      };
-      if (replyMarkup) body.reply_markup = replyMarkup;
+      let endpoint, body;
+      if (item.type === 'animation') {
+        endpoint = 'sendAnimation';
+        body = {
+          chat_id: config.telegram.chatId,
+          animation: item.animation,
+          caption: item.caption,
+          parse_mode: 'HTML',
+        };
+      } else {
+        endpoint = 'sendMessage';
+        body = {
+          chat_id: config.telegram.chatId,
+          text: item.text,
+          parse_mode: 'HTML',
+          disable_web_page_preview: true,
+        };
+        if (item.replyMarkup) body.reply_markup = item.replyMarkup;
+      }
 
-      const res = await fetch(`${API_BASE}/sendMessage`, {
+      const res = await fetch(`${API_BASE}/${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
