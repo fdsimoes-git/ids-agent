@@ -141,7 +141,11 @@ for svc in nginx fail2ban ufw; do
   # In non-interactive environments (cloud-init, Ansible), default to auto-detect
   if [[ -t 0 ]] && [[ -r /dev/tty ]]; then
     while true; do
-      read -rp "  Enable $svc log monitoring? ($path — $detected) [y/N]: " answer </dev/tty
+      if ! read -rp "  Enable $svc log monitoring? ($path — $detected) [y/N]: " answer </dev/tty; then
+        answer="n"
+        echo ""
+        break
+      fi
       case "${answer,,}" in
         y|yes) answer="y"; break ;;
         n|no|"") answer="n"; break ;;
@@ -165,7 +169,12 @@ for svc in nginx fail2ban ufw; do
       echo "    [!] $path does not exist — creating it to prevent systemd 226/NAMESPACE failure"
       case "$svc" in
         nginx) mkdir -p "$path" ;;
-        *)     touch "$path" ;;
+        *)
+          # Create with restrictive perms matching Ubuntu log conventions (root:adm 0640)
+          ( umask 0077; : > "$path" )
+          chown root:adm "$path" 2>/dev/null || true
+          chmod 0640 "$path" 2>/dev/null || true
+          ;;
       esac
     fi
     case "$svc" in
