@@ -159,7 +159,7 @@ async function main() {
   startApiServer(store);
 
   // Telegram bot commands
-  startBot(store, memory);
+  await startBot(store, memory);
 
   // Scheduled reports
   scheduleDailySummary(store, memory);
