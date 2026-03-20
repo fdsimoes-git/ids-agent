@@ -111,7 +111,54 @@ SUDOERS
 chmod 440 /etc/sudoers.d/ids-agent
 visudo -c -f /etc/sudoers.d/ids-agent
 
-# 9. Install systemd service (preserve existing env vars)
+# 9. Detect available services and configure ReadOnlyPaths accordingly
+# This prevents systemd 226/NAMESPACE errors when paths don't exist.
+echo ""
+echo "=== Service Detection ==="
+echo "Checking which services are available on this host..."
+echo "(Missing paths in ReadOnlyPaths cause systemd to fail with exit code 226/NAMESPACE)"
+echo ""
+
+# Map: service name → log path keyword used in the service template comments
+declare -A SERVICE_CHECKS=(
+  [nginx]="/var/log/nginx"
+  [fail2ban]="/var/log/fail2ban.log"
+  [ufw]="/var/log/ufw.log"
+)
+
+ENABLE_NGINX=false
+ENABLE_FAIL2BAN=false
+ENABLE_UFW=false
+
+for svc in nginx fail2ban ufw; do
+  path="${SERVICE_CHECKS[$svc]}"
+  if [ -e "$path" ]; then
+    detected="detected"
+  else
+    detected="not found"
+  fi
+
+  while true; do
+    read -rp "  Enable $svc log monitoring? ($path — $detected) [y/N]: " answer </dev/tty
+    case "${answer,,}" in
+      y|yes)
+        eval "ENABLE_${svc^^}=true"
+        echo "    -> $svc monitoring ENABLED"
+        break
+        ;;
+      n|no|"")
+        echo "    -> $svc monitoring DISABLED (path will be commented out)"
+        break
+        ;;
+      *)
+        echo "    Please answer y or n."
+        ;;
+    esac
+  done
+done
+echo ""
+
+# 10. Install systemd service (preserve existing env vars)
 echo "[+] Installing systemd service"
 LIVE_SERVICE="/etc/systemd/system/ids-agent.service"
 TEMPLATE="$SCRIPT_DIR/ids-agent.service"
@@ -142,6 +189,20 @@ else
   cp "$TEMPLATE" "$LIVE_SERVICE"
   echo "[+] Fresh install — remember to fill in environment variables"
 fi
+
+# Uncomment/comment ReadOnlyPaths lines based on user selections
+# Template has lines like: #ReadOnlyPaths=/var/log/nginx  # uncomment if nginx is installed
+if [ "$ENABLE_NGINX" = true ]; then
+  sed -i 's|^#ReadOnlyPaths=/var/log/nginx |ReadOnlyPaths=/var/log/nginx |' "$LIVE_SERVICE"
+fi
+if [ "$ENABLE_FAIL2BAN" = true ]; then
+  sed -i 's|^#ReadOnlyPaths=/var/log/fail2ban.log |ReadOnlyPaths=/var/log/fail2ban.log |' "$LIVE_SERVICE"
+fi
+if [ "$ENABLE_UFW" = true ]; then
+  sed -i 's|^#ReadOnlyPaths=/var/log/ufw.log |ReadOnlyPaths=/var/log/ufw.log |' "$LIVE_SERVICE"
+fi
+
+echo "[+] ReadOnlyPaths configured based on detected services"
 
 echo ""
 echo "=== Setup Complete ==="

@@ -29,8 +29,11 @@ NoNewPrivileges=false
 ProtectSystem=strict
 ReadWritePaths=/var/log/ids-agent /var/lib/ids-agent /run/ufw.lock /var/crash /etc/nginx/blocked-ips.conf
 # Add only paths that exist on your server (missing paths cause startup failure)
-ReadOnlyPaths=/var/log/nginx /var/log/auth.log /var/log/fail2ban.log
-# ReadOnlyPaths=/var/log/ufw.log  # uncomment if /var/log/ufw.log exists
+# setup.sh will automatically comment out paths for services not present on this host.
+ReadOnlyPaths=/var/log/auth.log
+#ReadOnlyPaths=/var/log/nginx        # uncomment if nginx is installed
+#ReadOnlyPaths=/var/log/fail2ban.log  # uncomment if fail2ban is installed
+#ReadOnlyPaths=/var/log/ufw.log      # uncomment if ufw is installed
 
 # Logging
 StandardOutput=journal
