@@ -49,17 +49,19 @@ export async function sendAlert(threat) {
     `<b>Details:</b> ${escapeHtml(threat.details)}`,
     `<b>Suggested:</b> ${escapeHtml(threat.suggestedAction)}`,
   );
-  lines.push(
-    ``,
-    `<b>Actions:</b>`,
-    `<code>/block_ip ${threat.ip}</code>`,
-    `<code>/whitelist ${threat.ip}</code>`,
-    `<code>/report ${threat.ip}</code>`,
-  );
-
   const text = lines.join('\n');
 
-  await sendMessage(text);
+  const replyMarkup = threat.ip ? {
+    inline_keyboard: [
+      [
+        { text: '\u{1F6AB} Block IP', callback_data: `block_ip:${threat.ip}` },
+        { text: '\u2705 Whitelist', callback_data: `whitelist:${threat.ip}` },
+        { text: '\u{1F50D} Report', callback_data: `report:${threat.ip}` },
+      ],
+    ],
+  } : undefined;
+
+  await sendMessage(text, replyMarkup);
 }
 
 export async function sendAIAnalysis(threat, analysis) {
@@ -76,45 +78,67 @@ export async function sendAIAnalysis(threat, analysis) {
     analysis.explanation,
   ].join('\n');
 
-  await sendMessage(text);
+  const aiMarkup = threat.ip ? {
+    inline_keyboard: [
+      [
+        { text: '\u{1F6AB} Block IP', callback_data: `block_ip:${threat.ip}` },
+        { text: '\u2705 Whitelist', callback_data: `whitelist:${threat.ip}` },
+      ],
+    ],
+  } : undefined;
+
+  await sendMessage(text, aiMarkup);
 }
 
 export async function sendActionTaken(ip, analysis) {
+  const markup = ip ? {
+    inline_keyboard: [
+      [
+        { text: '\u{1F513} Unblock IP', callback_data: `unblock_ip:${ip}` },
+        { text: '\u{1F50D} Report', callback_data: `report:${ip}` },
+      ],
+    ],
+  } : undefined;
+
   await sendMessage(
     `\u26A1 <b>Autonomous Action Executed</b>\n\n` +
     `IP <code>${ip}</code> has been <b>${escapeHtml(analysis.action)}ed</b>.\n` +
-    `Reason: ${escapeHtml(analysis.explanation)}`
+    `Reason: ${escapeHtml(analysis.explanation)}`,
+    markup
   );
 }
 
-export async function sendMessage(text) {
+export async function sendMessage(text, replyMarkup) {
   if (!config.telegram.botToken || !config.telegram.chatId) {
     logger.debug('Telegram not configured, message dropped');
     return;
   }
 
-  queue.push(text);
+  queue.push({ text, replyMarkup });
   if (!draining) drainQueue();
 }
 
 async function drainQueue() {
   draining = true;
   while (queue.length > 0) {
-    const text = queue.shift();
+    const { text, replyMarkup } = queue.shift();
     try {
+      const body = {
+        chat_id: config.telegram.chatId,
+        text,
+        parse_mode: 'HTML',
+        disable_web_page_preview: true,
+      };
+      if (replyMarkup) body.reply_markup = replyMarkup;
+
       const res = await fetch(`${API_BASE}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: config.telegram.chatId,
-          text,
-          parse_mode: 'HTML',
-          disable_web_page_preview: true,
-        }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
-        const body = await res.text();
-        logger.error('Telegram API error', { status: res.status, body: body.slice(0, 200) });
+        const errBody = await res.text();
+        logger.error('Telegram API error', { status: res.status, body: errBody.slice(0, 200) });
       }
     } catch (err) {
       logger.error('Telegram send failed', { error: err.message });

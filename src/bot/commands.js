@@ -10,15 +10,44 @@ const API_BASE = `https://api.telegram.org/bot${config.telegram.botToken}`;
 let offset = 0;
 let running = false;
 
-export function startBot(store, memory) {
+const BOT_COMMANDS = [
+  { command: 'block_ip', description: 'Block an IP across all security layers' },
+  { command: 'unblock_ip', description: 'Unblock a previously blocked IP' },
+  { command: 'whitelist', description: 'Suppress future alerts for an IP' },
+  { command: 'report', description: 'Generate AI analysis for an IP' },
+  { command: 'blocked', description: 'List all currently blocked IPs' },
+  { command: 'status', description: 'Show threat summary and system stats' },
+  { command: 'help', description: 'Show available commands' },
+];
+
+export async function startBot(store, memory) {
   if (!config.telegram.botToken || !config.telegram.chatId) {
     logger.warn('Telegram bot not configured — commands disabled');
     return;
   }
 
+  await registerCommands();
   running = true;
   poll(store, memory);
   logger.info('Telegram bot command listener started');
+}
+
+async function registerCommands() {
+  try {
+    const res = await fetch(`${API_BASE}/setMyCommands`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ commands: BOT_COMMANDS }),
+    });
+    if (!res.ok) {
+      const body = await res.text();
+      logger.error('Failed to register bot commands', { status: res.status, body: body.slice(0, 200) });
+    } else {
+      logger.info('Telegram bot command menu registered');
+    }
+  } catch (err) {
+    logger.error('Failed to register bot commands', { error: err.message });
+  }
 }
 
 async function poll(store, memory) {
@@ -33,7 +62,9 @@ async function poll(store, memory) {
       if (data.ok && data.result.length > 0) {
         for (const update of data.result) {
           offset = update.update_id + 1;
-          if (update.message) {
+          if (update.callback_query) {
+            await handleCallbackQuery(update.callback_query, store, memory);
+          } else if (update.message) {
             await handleMessage(update.message, store, memory);
           }
         }
@@ -45,6 +76,39 @@ async function poll(store, memory) {
       }
     }
   }
+}
+
+async function answerCallbackQuery(callbackQueryId, text) {
+  try {
+    await fetch(`${API_BASE}/answerCallbackQuery`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ callback_query_id: callbackQueryId, text }),
+    });
+  } catch (err) {
+    logger.error('Failed to answer callback query', { error: err.message });
+  }
+}
+
+async function handleCallbackQuery(query, store, memory) {
+  if (String(query.message?.chat?.id) !== String(config.telegram.chatId)) return;
+
+  const [action, ip] = (query.data || '').split(':');
+  const cleanIp = sanitizeIp(ip);
+
+  if (!cleanIp) {
+    await answerCallbackQuery(query.id, 'Invalid IP address');
+    return;
+  }
+
+  // Simulate the command as a message
+  const syntheticMsg = {
+    chat: query.message.chat,
+    text: `/${action} ${cleanIp}`,
+  };
+
+  await answerCallbackQuery(query.id, `Running /${action} ${cleanIp}...`);
+  await handleMessage(syntheticMsg, store, memory);
 }
 
 async function handleMessage(msg, store, memory) {
