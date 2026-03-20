@@ -119,7 +119,7 @@ echo "Checking which services are available on this host..."
 echo "(Missing paths in ReadOnlyPaths cause systemd to fail with exit code 226/NAMESPACE)"
 echo ""
 
-# Map: service name → log path keyword used in the service template comments
+# Map: service name → log path to check for existence
 declare -A SERVICE_CHECKS=(
   [nginx]="/var/log/nginx"
   [fail2ban]="/var/log/fail2ban.log"
@@ -160,6 +160,14 @@ for svc in nginx fail2ban ufw; do
   fi
 
   if [ "$answer" = "y" ]; then
+    # Ensure the path exists so ReadOnlyPaths won't trigger 226/NAMESPACE
+    if [ ! -e "$path" ]; then
+      echo "    [!] $path does not exist — creating it to prevent systemd 226/NAMESPACE failure"
+      case "$svc" in
+        nginx) mkdir -p "$path" ;;
+        *)     touch "$path" ;;
+      esac
+    fi
     case "$svc" in
       nginx)    ENABLE_NGINX=true ;;
       fail2ban) ENABLE_FAIL2BAN=true ;;
@@ -213,9 +221,6 @@ if [ "$ENABLE_FAIL2BAN" = true ]; then
 fi
 if [ "$ENABLE_UFW" = true ]; then
   sed -i 's|^#ReadOnlyPaths=/var/log/ufw.log$|ReadOnlyPaths=/var/log/ufw.log|' "$LIVE_SERVICE"
-  sed -i 's|^#ReadWritePaths=/run/ufw.lock$|ReadWritePaths=/run/ufw.lock|' "$LIVE_SERVICE"
-  # Ensure the lock file exists so ReadWritePaths doesn't trigger 226/NAMESPACE
-  touch /run/ufw.lock 2>/dev/null || true
 fi
 
 echo "[+] ReadOnlyPaths configured based on detected services"

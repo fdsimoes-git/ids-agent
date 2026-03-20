@@ -28,8 +28,6 @@ Environment="IDS_PORT=3001"
 NoNewPrivileges=false
 ProtectSystem=strict
 ReadWritePaths=/var/log/ids-agent /var/lib/ids-agent /var/crash /etc/nginx/blocked-ips.conf
-# Uncomment if ufw is installed (setup.sh does this automatically)
-#ReadWritePaths=/run/ufw.lock
 # Add only paths that exist on your server (missing paths cause startup failure).
 # setup.sh will automatically uncomment paths for services present on this host.
 ReadOnlyPaths=/var/log/auth.log
