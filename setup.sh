@@ -138,23 +138,37 @@ for svc in nginx fail2ban ufw; do
     detected="not found"
   fi
 
-  while true; do
-    read -rp "  Enable $svc log monitoring? ($path — $detected) [y/N]: " answer </dev/tty
-    case "${answer,,}" in
-      y|yes)
-        eval "ENABLE_${svc^^}=true"
-        echo "    -> $svc monitoring ENABLED"
-        break
-        ;;
-      n|no|"")
-        echo "    -> $svc monitoring DISABLED (path will be commented out)"
-        break
-        ;;
-      *)
-        echo "    Please answer y or n."
-        ;;
+  # In non-interactive environments (cloud-init, Ansible), default to auto-detect
+  if [[ -t 0 ]] && [[ -r /dev/tty ]]; then
+    while true; do
+      read -rp "  Enable $svc log monitoring? ($path — $detected) [y/N]: " answer </dev/tty
+      case "${answer,,}" in
+        y|yes) answer="y"; break ;;
+        n|no|"") answer="n"; break ;;
+        *) echo "    Please answer y or n." ;;
+      esac
+    done
+  else
+    # Non-interactive: enable only if the path exists
+    if [ -e "$path" ]; then
+      answer="y"
+      echo "  [auto] $svc monitoring ENABLED ($path exists)"
+    else
+      answer="n"
+      echo "  [auto] $svc monitoring DISABLED ($path not found)"
+    fi
+  fi
+
+  if [ "$answer" = "y" ]; then
+    case "$svc" in
+      nginx)    ENABLE_NGINX=true ;;
+      fail2ban) ENABLE_FAIL2BAN=true ;;
+      ufw)      ENABLE_UFW=true ;;
     esac
-  done
+    echo "    -> $svc monitoring ENABLED"
+  else
+    echo "    -> $svc monitoring DISABLED (path will be commented out)"
+  fi
 done
 echo ""
 
@@ -200,6 +214,7 @@ if [ "$ENABLE_FAIL2BAN" = true ]; then
 fi
 if [ "$ENABLE_UFW" = true ]; then
   sed -i 's|^#ReadOnlyPaths=/var/log/ufw.log |ReadOnlyPaths=/var/log/ufw.log |' "$LIVE_SERVICE"
+  sed -i 's|^#ReadWritePaths=/run/ufw.lock |ReadWritePaths=/run/ufw.lock |' "$LIVE_SERVICE"
 fi
 
 echo "[+] ReadOnlyPaths configured based on detected services"
