@@ -54,9 +54,9 @@ export async function sendAlert(threat) {
   const replyMarkup = threat.ip ? {
     inline_keyboard: [
       [
-        { text: '\u{1F6AB} Block IP', callback_data: `block_ip:${threat.ip}` },
-        { text: '\u2705 Whitelist', callback_data: `whitelist:${threat.ip}` },
-        { text: '\u{1F50D} Report', callback_data: `report:${threat.ip}` },
+        { text: '\u{1F6AB} Block IP', callback_data: `block_ip|${threat.ip}` },
+        { text: '\u2705 Whitelist', callback_data: `whitelist|${threat.ip}` },
+        { text: '\u{1F50D} Report', callback_data: `report|${threat.ip}` },
       ],
     ],
   } : undefined;
@@ -81,8 +81,8 @@ export async function sendAIAnalysis(threat, analysis) {
   const aiMarkup = threat.ip ? {
     inline_keyboard: [
       [
-        { text: '\u{1F6AB} Block IP', callback_data: `block_ip:${threat.ip}` },
-        { text: '\u2705 Whitelist', callback_data: `whitelist:${threat.ip}` },
+        { text: '\u{1F6AB} Block IP', callback_data: `block_ip|${threat.ip}` },
+        { text: '\u2705 Whitelist', callback_data: `whitelist|${threat.ip}` },
       ],
     ],
   } : undefined;
@@ -94,8 +94,8 @@ export async function sendActionTaken(ip, analysis) {
   const markup = ip ? {
     inline_keyboard: [
       [
-        { text: '\u{1F513} Unblock IP', callback_data: `unblock_ip:${ip}` },
-        { text: '\u{1F50D} Report', callback_data: `report:${ip}` },
+        { text: '\u{1F513} Unblock IP', callback_data: `unblock_ip|${ip}` },
+        { text: '\u{1F50D} Report', callback_data: `report|${ip}` },
       ],
     ],
   } : undefined;

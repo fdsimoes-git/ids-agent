@@ -90,10 +90,29 @@ async function answerCallbackQuery(callbackQueryId, text) {
   }
 }
 
-async function handleCallbackQuery(query, store, memory) {
-  if (String(query.message?.chat?.id) !== String(config.telegram.chatId)) return;
+const ALLOWED_CALLBACK_ACTIONS = new Set(['block_ip', 'unblock_ip', 'whitelist', 'report']);
 
-  const [action, ip] = (query.data || '').split(':');
+async function handleCallbackQuery(query, store, memory) {
+  if (String(query.message?.chat?.id) !== String(config.telegram.chatId)) {
+    await answerCallbackQuery(query.id, 'Not authorized');
+    return;
+  }
+
+  const data = query.data || '';
+  const separatorIndex = data.indexOf('|');
+  if (separatorIndex === -1) {
+    await answerCallbackQuery(query.id, 'Invalid callback payload');
+    return;
+  }
+
+  const action = data.slice(0, separatorIndex);
+  const ip = data.slice(separatorIndex + 1);
+
+  if (!ALLOWED_CALLBACK_ACTIONS.has(action)) {
+    await answerCallbackQuery(query.id, 'Unknown action');
+    return;
+  }
+
   const cleanIp = sanitizeIp(ip);
 
   if (!cleanIp) {
@@ -101,7 +120,6 @@ async function handleCallbackQuery(query, store, memory) {
     return;
   }
 
-  // Simulate the command as a message
   const syntheticMsg = {
     chat: query.message.chat,
     text: `/${action} ${cleanIp}`,
